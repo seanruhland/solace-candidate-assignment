@@ -16,7 +16,7 @@ interface Advocate {
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +33,6 @@ export default function Home() {
 
         const jsonResponse = await response.json();
         setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
       } catch (err) {
         console.error("Error fetching advocates:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch advocates");
@@ -46,30 +45,31 @@ export default function Home() {
     fetchAdvocates();
   }, []);
 
- const onChange = (e) => {
-    const searchTerm = e.target.value;
+  const filteredAdvocates = useMemo(() => {
+    if (!searchTerm.trim()) return advocates;
 
-    document.getElementById("search-term").innerHTML = searchTerm;
-
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
+    const searchLower = searchTerm.toLowerCase();
+    return advocates.filter((advocate) => {
       return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
+        advocate.firstName.toLowerCase().includes(searchLower) ||
+        advocate.lastName.toLowerCase().includes(searchLower) ||
+        advocate.city.toLowerCase().includes(searchLower) ||
+        advocate.degree.toLowerCase().includes(searchLower) ||
+        advocate.specialties.some(specialty =>
+          specialty.toLowerCase().includes(searchLower)
+        ) ||
         advocate.yearsOfExperience.toString().includes(searchTerm)
       );
     });
+  }, [advocates, searchTerm]);
 
-    setFilteredAdvocates(filteredAdvocates);
-  };
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
-  const onClick = () => {
-    console.log(advocates);
-    setFilteredAdvocates(advocates);
-  };
+  const handleResetSearch = useCallback(() => {
+    setSearchTerm("");
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -100,13 +100,23 @@ export default function Home() {
       <br />
       <div>
         <p>Search</p>
-         <p> Searching for: <span id="search-term"></span>
+        <p>
+          Searching for: <span>{searchTerm}</span>
         </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+        <input
+          style={{ border: "1px solid black" }}
+          onChange={handleSearchChange}
+          value={searchTerm}
+          placeholder="Search advocates..."
+          name="search"
+        />
+        <button onClick={handleResetSearch}>Reset Search</button>
       </div>
       <br />
       <br />
+      <div>
+        <p>Showing {filteredAdvocates.length} of {advocates.length} advocates</p>
+      </div>
       <table>
         <thead>
           <tr>
