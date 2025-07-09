@@ -31,10 +31,15 @@ const specialties = [
 ];
 
 const randomSpecialty = () => {
-  const random1 = Math.floor(Math.random() * 24);
-  const random2 = Math.floor(Math.random() * (24 - random1)) + random1 + 1;
+  const random1 = Math.floor(Math.random() * specialties.length);
+  const random2 = Math.floor(Math.random() * specialties.length);
 
-  return [random1, random2];
+  // Ensure we get 2 different specialties
+  if (random1 === random2) {
+    return [random1, (random1 + 1) % specialties.length];
+  }
+
+  return [Math.min(random1, random2), Math.max(random1, random2)];
 };
 
 const advocateData = [
