@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 interface Advocate {
   id: number;
@@ -24,7 +24,6 @@ export default function Home() {
       try {
         setIsLoading(true);
         setError(null);
-        console.log("fetching advocates...");
 
         const response = await fetch("/api/advocates");
         if (!response.ok) {
@@ -44,7 +43,7 @@ export default function Home() {
   useEffect(() => {
     fetchAdvocates();
   }, []);
-
+  //TODO: Move this search to the server side
   const filteredAdvocates = useMemo(() => {
     if (!searchTerm.trim()) return advocates;
 
@@ -63,14 +62,15 @@ export default function Home() {
     });
   }, [advocates, searchTerm]);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-  }, []);
+  };
 
-  const handleResetSearch = useCallback(() => {
+  const handleResetSearch = () => {
     setSearchTerm("");
-  }, []);
+  };
 
+  //TODO: Move to separate files and utilize and component library for loading and error states
   // Loading state
   if (isLoading) {
     return (
