@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import LoadingState from "./components/LoadingState";
+import ErrorState from "./components/ErrorState";
+import SearchSection from "./components/SearchSection";
 
 interface Advocate {
   id: number;
@@ -70,41 +73,14 @@ export default function Home() {
     setSearchTerm("");
   };
 
-  //TODO: Move to separate files and utilize and component library for loading and error states
   // Loading state
   if (isLoading) {
-    return (
-      <main className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600 text-lg">Loading advocates...</p>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
+    return <LoadingState />;
   }
 
   // Error state
   if (error) {
-    return (
-      <main className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <h1 className="text-2xl font-bold text-red-800 mb-4">Error</h1>
-            <p className="text-red-600 mb-6">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </main>
-    );
+    return <ErrorState error={error} onRetry={fetchAdvocates} />;
   }
 
   return (
@@ -116,50 +92,13 @@ export default function Home() {
           <p className="text-gray-600">Find and search through our network of legal advocates</p>
         </div>
 
-        {/* Search Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                Search Advocates
-              </label>
-              <div className="relative">
-                <input
-                  id="search"
-                  type="text"
-                  onChange={handleSearchChange}
-                  value={searchTerm}
-                  placeholder="Search by name, city, degree, specialty, or experience..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={handleResetSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
-                Showing <span className="font-semibold text-gray-900">{filteredAdvocates.length}</span> of{" "}
-                <span className="font-semibold text-gray-900">{advocates.length}</span> advocates
-              </div>
-              {searchTerm && (
-                <button
-                  onClick={handleResetSearch}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Clear Search
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <SearchSection
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onResetSearch={handleResetSearch}
+          filteredCount={filteredAdvocates.length}
+          totalCount={advocates.length}
+        />
 
         {/* Table Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
