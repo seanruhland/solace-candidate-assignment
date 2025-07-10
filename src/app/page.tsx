@@ -19,6 +19,7 @@ interface Advocate {
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +54,11 @@ export default function Home() {
       }
       const jsonResponse = await response.json();
       setAdvocates(jsonResponse.data);
+
+      // Update total count only on initial load (when no search is applied)
+      if (!search) {
+        setTotalCount(jsonResponse.data.length);
+      }
     } catch (err) {
       console.error("Error fetching advocates:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch advocates");
@@ -112,7 +118,7 @@ export default function Home() {
           onSearchChange={handleSearchChange}
           onResetSearch={handleResetSearch}
           filteredCount={advocates.length}
-          totalCount={advocates.length}
+          totalCount={totalCount}
           isSearching={isSearching}
         />
 
