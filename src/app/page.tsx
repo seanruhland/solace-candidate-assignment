@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import LoadingState from "./components/LoadingState";
+import ErrorState from "./components/ErrorState";
+import SearchSection from "./components/SearchSection";
 
 interface Advocate {
   id: number;
@@ -70,83 +73,120 @@ export default function Home() {
     setSearchTerm("");
   };
 
-  //TODO: Move to separate files and utilize and component library for loading and error states
   // Loading state
   if (isLoading) {
-    return (
-      <main className="m-6">
-        <div>Loading advocates...</div>
-      </main>
-    );
+    return <LoadingState />;
   }
 
   // Error state
   if (error) {
-    return (
-      <main className="m-6">
-        <div>
-          <h1>Error</h1>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      </main>
-    );
+    return <ErrorState error={error} onRetry={fetchAdvocates} />;
   }
 
   return (
-    <main className="m-6">
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span>{searchTerm}</span>
-        </p>
-        <input
-          className="border border-black"
-          onChange={handleSearchChange}
-          value={searchTerm}
-          placeholder="Search advocates..."
-          name="search"
+    <main className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Solace Advocates</h1>
+          <p className="text-gray-600">Find and search through our network of legal advocates</p>
+        </div>
+
+        <SearchSection
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onResetSearch={handleResetSearch}
+          filteredCount={filteredAdvocates.length}
+          totalCount={advocates.length}
         />
-        <button onClick={handleResetSearch}>Reset Search</button>
+
+        {/* Table Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="max-h-[500px] overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      Name
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      City
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      Degree
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      Specialties
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      Experience
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                      Phone
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAdvocates.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <div className="flex flex-col items-center">
+                        <svg className="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <p className="text-lg font-medium">No advocates found</p>
+                        <p className="text-sm">Try adjusting your search criteria</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAdvocates.map((advocate) => (
+                    <tr key={advocate.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {advocate.firstName} {advocate.lastName}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{advocate.city}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{advocate.degree}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {advocate.specialties.map((specialty, index) => (
+                            <span
+                              key={`${advocate.id}-${index}`}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {specialty}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {advocate.yearsOfExperience} {advocate.yearsOfExperience === 1 ? 'year' : 'years'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {advocate.phoneNumber.toString().replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </div>
       </div>
-      <br />
-      <br />
-      <div>
-        <p>Showing {filteredAdvocates ? filteredAdvocates.length : advocates.length} of {advocates.length} advocates</p>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>City</th>
-            <th>Degree</th>
-            <th>Specialties</th>
-            <th>Years of Experience</th>
-            <th>Phone Number</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => (
-            <tr key={advocate.id}>
-              <td>{advocate.firstName}</td>
-              <td>{advocate.lastName}</td>
-              <td>{advocate.city}</td>
-              <td>{advocate.degree}</td>
-              <td>
-                {advocate.specialties.map((specialty, index) => (
-                  <div key={`${advocate.id}-${index}`}>{specialty}</div>
-                ))}
-              </td>
-              <td>{advocate.yearsOfExperience}</td>
-              <td>{advocate.phoneNumber}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </main>
   );
 }
