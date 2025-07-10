@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import LoadingState from "./components/LoadingState";
 import ErrorState from "./components/ErrorState";
 import SearchSection from "./components/SearchSection";
+import Pagination from "./components/Pagination";
 
 interface Advocate {
   id: number;
@@ -22,6 +23,9 @@ export default function Home() {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState("firstName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,27 +42,30 @@ export default function Home() {
     };
   }, [searchTerm]);
 
-  // Fetch advocates when debouncedSearchTerm changes
-  const fetchAdvocates = async (search?: string) => {
+  // Fetch advocates with search, pagination, and sorting
+  const fetchAdvocates = async (search?: string, page?: number, sort?: string, order?: "asc" | "desc") => {
     try {
-      if (search) {
+      if (search || page !== currentPage || sort !== sortBy || order !== sortOrder) {
         setIsSearching(true);
       } else {
         setIsLoading(true);
       }
       setError(null);
-      const url = search ? `/api/advocates?search=${encodeURIComponent(search)}` : "/api/advocates";
+
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (page) params.append('page', page.toString());
+      if (sort) params.append('sortBy', sort);
+      if (order) params.append('sortOrder', order);
+
+      const url = `/api/advocates?${params.toString()}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const jsonResponse = await response.json();
       setAdvocates(jsonResponse.data);
-
-      // Update total count only on initial load (when no search is applied)
-      if (!search) {
-        setTotalCount(jsonResponse.data.length);
-      }
+      setTotalCount(jsonResponse.pagination.total);
     } catch (err) {
       console.error("Error fetching advocates:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch advocates");
@@ -76,9 +83,16 @@ export default function Home() {
 
   // Fetch when debouncedSearchTerm changes
   useEffect(() => {
-    fetchAdvocates(debouncedSearchTerm);
+    setCurrentPage(1); // Reset to first page when searching
+    fetchAdvocates(debouncedSearchTerm, 1, sortBy, sortOrder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm]);
+
+  // Fetch when pagination or sorting changes
+  useEffect(() => {
+    fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, sortBy, sortOrder]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -87,11 +101,23 @@ export default function Home() {
   const handleResetSearch = () => {
     setSearchTerm("");
     setDebouncedSearchTerm("");
-    fetchAdvocates(""); // Immediately fetch all data
+    setCurrentPage(1);
+    fetchAdvocates("", 1, sortBy, sortOrder);
   };
 
   const handleRetry = () => {
-    fetchAdvocates(debouncedSearchTerm);
+    fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSort = (field: string) => {
+    const newOrder = sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+    setSortBy(field);
+    setSortOrder(newOrder);
+    setCurrentPage(1); // Reset to first page when sorting
   };
 
   // Loading state
@@ -129,20 +155,60 @@ export default function Home() {
               <table className="w-full">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Name
+                    <th
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort("firstName")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Name
+                        {sortBy === "firstName" && (
+                          <span className="text-blue-600">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      City
+                    <th
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort("city")}
+                    >
+                      <div className="flex items-center gap-1">
+                        City
+                        {sortBy === "city" && (
+                          <span className="text-blue-600">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Degree
+                    <th
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort("degree")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Degree
+                        {sortBy === "degree" && (
+                          <span className="text-blue-600">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
                       Specialties
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Experience
+                    <th
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort("yearsOfExperience")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Experience
+                        {sortBy === "yearsOfExperience" && (
+                          <span className="text-blue-600">
+                            {sortOrder === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
                       Phone
@@ -207,6 +273,13 @@ export default function Home() {
             </table>
             </div>
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalCount / 10)}
+            totalItems={totalCount}
+            itemsPerPage={10}
+            onPageChange={handlePageChange}
+          />
         </div>
       </div>
     </main>
