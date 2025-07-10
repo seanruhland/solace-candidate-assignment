@@ -1,0 +1,13 @@
+{
+  "version": "5",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1752171944181,
+      "tag": "0000_fat_franklin_richards",
+      "breakpoints": true
+    }
+  ]
+}

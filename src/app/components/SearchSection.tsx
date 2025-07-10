@@ -4,6 +4,7 @@ interface SearchSectionProps {
   onResetSearch: () => void;
   filteredCount: number;
   totalCount: number;
+  isSearching?: boolean;
 }
 
 export default function SearchSection({
@@ -12,6 +13,7 @@ export default function SearchSection({
   onResetSearch,
   filteredCount,
   totalCount,
+  isSearching = false,
 }: SearchSectionProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -43,17 +45,19 @@ export default function SearchSection({
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            Showing <span className="font-semibold text-gray-900">{filteredCount}</span> of{" "}
-            <span className="font-semibold text-gray-900">{totalCount}</span> advocates
+            {isSearching ? (
+              <span className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                Searching...
+              </span>
+            ) : (
+              <>
+                Showing <span className="font-semibold text-gray-900">{filteredCount}</span> of{" "}
+                <span className="font-semibold text-gray-900">{totalCount}</span> advocates
+              </>
+            )}
           </div>
-          {searchTerm && (
-            <button
-              onClick={onResetSearch}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Clear Search
-            </button>
-          )}
+
         </div>
       </div>
     </div>
