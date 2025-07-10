@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 interface Advocate {
   id: number;
@@ -24,7 +24,6 @@ export default function Home() {
       try {
         setIsLoading(true);
         setError(null);
-        console.log("fetching advocates...");
 
         const response = await fetch("/api/advocates");
         if (!response.ok) {
@@ -44,7 +43,7 @@ export default function Home() {
   useEffect(() => {
     fetchAdvocates();
   }, []);
-
+  //TODO: Move this search to the server side
   const filteredAdvocates = useMemo(() => {
     if (!searchTerm.trim()) return advocates;
 
@@ -63,18 +62,19 @@ export default function Home() {
     });
   }, [advocates, searchTerm]);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-  }, []);
+  };
 
-  const handleResetSearch = useCallback(() => {
+  const handleResetSearch = () => {
     setSearchTerm("");
-  }, []);
+  };
 
+  //TODO: Move to separate files and utilize and component library for loading and error states
   // Loading state
   if (isLoading) {
     return (
-      <main style={{ margin: "24px" }}>
+      <main className="m-6">
         <div>Loading advocates...</div>
       </main>
     );
@@ -83,7 +83,7 @@ export default function Home() {
   // Error state
   if (error) {
     return (
-      <main style={{ margin: "24px" }}>
+      <main className="m-6">
         <div>
           <h1>Error</h1>
           <p>{error}</p>
@@ -94,7 +94,7 @@ export default function Home() {
   }
 
   return (
-    <main style={{ margin: "24px" }}>
+    <main className="m-6">
       <h1>Solace Advocates</h1>
       <br />
       <br />
@@ -104,7 +104,7 @@ export default function Home() {
           Searching for: <span>{searchTerm}</span>
         </p>
         <input
-          style={{ border: "1px solid black" }}
+          className="border border-black"
           onChange={handleSearchChange}
           value={searchTerm}
           placeholder="Search advocates..."
@@ -115,7 +115,7 @@ export default function Home() {
       <br />
       <br />
       <div>
-        <p>Showing {filteredAdvocates.length} of {advocates.length} advocates</p>
+        <p>Showing {filteredAdvocates ? filteredAdvocates.length : advocates.length} of {advocates.length} advocates</p>
       </div>
       <table>
         <thead>
