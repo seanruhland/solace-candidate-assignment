@@ -7,6 +7,7 @@ import {
   serial,
   timestamp,
   bigint,
+  index,
 } from "drizzle-orm/pg-core";
 
 const advocates = pgTable("advocates", {
@@ -19,6 +20,19 @@ const advocates = pgTable("advocates", {
   yearsOfExperience: integer("years_of_experience").notNull(),
   phoneNumber: bigint("phone_number", { mode: "number" }).notNull(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  firstNameIdx: index("advocates_first_name_idx").on(table.firstName),
+  lastNameIdx: index("advocates_last_name_idx").on(table.lastName),
+  cityIdx: index("advocates_city_idx").on(table.city),
+  degreeIdx: index("advocates_degree_idx").on(table.degree),
+  experienceIdx: index("advocates_experience_idx").on(table.yearsOfExperience),
+  // Full-text search index for better performance
+  searchIdx: index("advocates_search_idx").on(
+    table.firstName,
+    table.lastName,
+    table.city,
+    table.degree
+  ),
+}));
 
 export { advocates };

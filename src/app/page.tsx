@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useRef } from "react";
 import LoadingState from "./components/LoadingState";
 import ErrorState from "./components/ErrorState";
 import SearchSection from "./components/SearchSection";
@@ -19,51 +19,66 @@ interface Advocate {
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchAdvocates = async () => {
-      try {
+  // Debounce searchTerm into debouncedSearchTerm
+  useEffect(() => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    debounceTimeout.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 300);
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, [searchTerm]);
+
+  // Fetch advocates when debouncedSearchTerm changes
+  const fetchAdvocates = async (search?: string) => {
+    try {
+      if (search) {
+        setIsSearching(true);
+      } else {
         setIsLoading(true);
-        setError(null);
-
-        const response = await fetch("/api/advocates");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const jsonResponse = await response.json();
-        setAdvocates(jsonResponse.data);
-      } catch (err) {
-        console.error("Error fetching advocates:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch advocates");
-      } finally {
-        setIsLoading(false);
       }
+      setError(null);
+      const url = search ? `/api/advocates?search=${encodeURIComponent(search)}` : "/api/advocates";
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const jsonResponse = await response.json();
+      setAdvocates(jsonResponse.data);
+
+      // Update total count only on initial load (when no search is applied)
+      if (!search) {
+        setTotalCount(jsonResponse.data.length);
+      }
+    } catch (err) {
+      console.error("Error fetching advocates:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch advocates");
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
   };
 
+  // Initial fetch on mount
   useEffect(() => {
     fetchAdvocates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  //TODO: Move this search to the server side
-  const filteredAdvocates = useMemo(() => {
-    if (!searchTerm.trim()) return advocates;
 
-    const searchLower = searchTerm.toLowerCase();
-    return advocates.filter((advocate) => {
-      return (
-        advocate.firstName.toLowerCase().includes(searchLower) ||
-        advocate.lastName.toLowerCase().includes(searchLower) ||
-        advocate.city.toLowerCase().includes(searchLower) ||
-        advocate.degree.toLowerCase().includes(searchLower) ||
-        advocate.specialties.some(specialty =>
-          specialty.toLowerCase().includes(searchLower)
-        ) ||
-        advocate.yearsOfExperience.toString().includes(searchTerm)
-      );
-    });
-  }, [advocates, searchTerm]);
+  // Fetch when debouncedSearchTerm changes
+  useEffect(() => {
+    fetchAdvocates(debouncedSearchTerm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -71,6 +86,12 @@ export default function Home() {
 
   const handleResetSearch = () => {
     setSearchTerm("");
+    setDebouncedSearchTerm("");
+    fetchAdvocates(""); // Immediately fetch all data
+  };
+
+  const handleRetry = () => {
+    fetchAdvocates(debouncedSearchTerm);
   };
 
   // Loading state
@@ -80,7 +101,7 @@ export default function Home() {
 
   // Error state
   if (error) {
-    return <ErrorState error={error} onRetry={fetchAdvocates} />;
+    return <ErrorState error={error} onRetry={handleRetry} />;
   }
 
   return (
@@ -96,8 +117,9 @@ export default function Home() {
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
           onResetSearch={handleResetSearch}
-          filteredCount={filteredAdvocates.length}
-          totalCount={advocates.length}
+          filteredCount={advocates.length}
+          totalCount={totalCount}
+          isSearching={isSearching}
         />
 
         {/* Table Section */}
@@ -128,7 +150,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAdvocates.length === 0 ? (
+                {advocates.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                       <div className="flex flex-col items-center">
@@ -141,7 +163,7 @@ export default function Home() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAdvocates.map((advocate) => (
+                  advocates.map((advocate: Advocate) => (
                     <tr key={advocate.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -158,7 +180,7 @@ export default function Home() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {advocate.specialties.map((specialty, index) => (
+                          {advocate.specialties.map((specialty: string, index: number) => (
                             <span
                               key={`${advocate.id}-${index}`}
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
