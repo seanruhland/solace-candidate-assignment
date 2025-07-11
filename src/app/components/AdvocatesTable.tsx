@@ -92,6 +92,7 @@ export default function AdvocatesTable({
   totalCount = 0,
 }: AdvocatesTableProps) {
   const [sorting, setSorting] = useState<SortingState>(currentSorting);
+  const [isSorting, setIsSorting] = useState(false);
 
   const columns = useMemo<ColumnDef<Advocate>[]>(
     () => [
@@ -101,10 +102,12 @@ export default function AdvocatesTable({
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
+            disabled={isSorting}
           >
             Name
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
             {column.getIsSorted() === "desc" && <span className="text-blue-600">↓</span>}
+            {isSorting && column.getIsSorted() && <span className="text-gray-400">⟳</span>}
           </button>
         ),
         cell: ({ row }) => (
@@ -120,10 +123,12 @@ export default function AdvocatesTable({
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
+            disabled={isSorting}
           >
             City
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
             {column.getIsSorted() === "desc" && <span className="text-blue-600">↓</span>}
+            {isSorting && column.getIsSorted() && <span className="text-gray-400">⟳</span>}
           </button>
         ),
         cell: ({ row }) => (
@@ -137,10 +142,12 @@ export default function AdvocatesTable({
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
+            disabled={isSorting}
           >
             Degree
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
             {column.getIsSorted() === "desc" && <span className="text-blue-600">↓</span>}
+            {isSorting && column.getIsSorted() && <span className="text-gray-400">⟳</span>}
           </button>
         ),
         cell: ({ row }) => (
@@ -162,10 +169,12 @@ export default function AdvocatesTable({
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
+            disabled={isSorting}
           >
             Experience
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
             {column.getIsSorted() === "desc" && <span className="text-blue-600">↓</span>}
+            {isSorting && column.getIsSorted() && <span className="text-gray-400">⟳</span>}
           </button>
         ),
         cell: ({ row }) => (
@@ -193,7 +202,7 @@ export default function AdvocatesTable({
         size: 160, // Increased width further for phone column
       },
     ],
-    []
+    [isSorting]
   );
 
   const table = useReactTable({
@@ -205,7 +214,10 @@ export default function AdvocatesTable({
     onSortingChange: (updater) => {
       const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
       setSorting(newSorting);
+      setIsSorting(true);
       onSortChange?.(newSorting);
+      // Reset sorting state after a short delay to allow for data update
+      setTimeout(() => setIsSorting(false), 400);
     },
     state: {
       sorting,

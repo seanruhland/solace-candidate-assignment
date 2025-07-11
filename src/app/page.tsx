@@ -30,6 +30,7 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSorting, setIsSorting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,9 +50,12 @@ export default function Home() {
     try {
       // Show loading state for any operation that's not the initial load
       const isInitialLoad = !search && page === 1 && sort === "firstName" && order === "asc";
+      const isSortingOperation = !search && page === currentPage && sort !== sortBy;
 
       if (isInitialLoad) {
         setIsLoading(true);
+      } else if (isSortingOperation) {
+        setIsSorting(true);
       } else {
         setIsSearching(true);
       }
@@ -78,8 +82,9 @@ export default function Home() {
     } finally {
       setIsLoading(false);
       setIsSearching(false);
+      setIsSorting(false);
     }
-  }, []);
+  }, [currentPage, sortBy]);
 
   // Memoize the initial load check to prevent unnecessary re-renders
   const isInitialLoad = useMemo(() => {
