@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import LoadingState from "./components/LoadingState";
 import ErrorState from "./components/ErrorState";
 import SearchSection from "./components/SearchSection";
-import Pagination from "./components/Pagination";
+import AdvocatesTable from "./components/AdvocatesTable";
+import { type SortingState } from "@tanstack/react-table";
 
 interface Advocate {
   id: number;
@@ -114,64 +115,25 @@ export default function Home() {
     setCurrentPage(1); // Reset to first page when sorting
   };
 
-  // Memoize table rows to prevent unnecessary re-renders
-  const tableRows = useMemo(() => {
-    if (advocates.length === 0) {
-      return (
-        <tr>
-          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-            <div className="flex flex-col items-center">
-              <svg className="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <p className="text-lg font-medium">No advocates found</p>
-              <p className="text-sm">Try adjusting your search criteria</p>
-            </div>
-          </td>
-        </tr>
-      );
+  // Convert TanStack sorting state to our format
+  const handleTableSortChange = (sorting: SortingState) => {
+    if (sorting.length > 0) {
+      const { id, desc } = sorting[0];
+      setSortBy(id);
+      setSortOrder(desc ? "desc" : "asc");
+      setCurrentPage(1);
     }
+  };
 
-    return advocates.map((advocate: Advocate) => (
-      <tr key={advocate.id} className="hover:bg-gray-50 transition-colors">
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {advocate.firstName} {advocate.lastName}
-            </div>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">{advocate.city}</div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">{advocate.degree}</div>
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex flex-wrap gap-1">
-            {advocate.specialties.map((specialty: string, index: number) => (
-              <span
-                key={`${advocate.id}-${index}`}
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-              >
-                {specialty}
-              </span>
-            ))}
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">
-            {advocate.yearsOfExperience} {advocate.yearsOfExperience === 1 ? 'year' : 'years'}
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">
-            {advocate.phoneNumber.toString().replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
-          </div>
-        </td>
-      </tr>
-    ));
-  }, [advocates]);
+  // Convert TanStack pagination to our format
+  const handleTablePageChange = (pageIndex: number, pageSize: number) => {
+    setCurrentPage(pageIndex + 1); // TanStack uses 0-based indexing
+  };
+
+  // Convert our sorting state to TanStack format
+  const currentSorting: SortingState = useMemo(() => {
+    return sortBy ? [{ id: sortBy, desc: sortOrder === "desc" }] : [];
+  }, [sortBy, sortOrder]);
 
   // Loading state
   if (isLoading) {
@@ -201,87 +163,16 @@ export default function Home() {
           isSearching={isSearching}
         />
 
-        {/* Table Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="max-h-[500px] overflow-y-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th
-                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("firstName")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Name
-                        {sortBy === "firstName" && (
-                          <span className="text-blue-600">
-                            {sortOrder === "asc" ? "↑" : "↓"}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("city")}
-                    >
-                      <div className="flex items-center gap-1">
-                        City
-                        {sortBy === "city" && (
-                          <span className="text-blue-600">
-                            {sortOrder === "asc" ? "↑" : "↓"}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("degree")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Degree
-                        {sortBy === "degree" && (
-                          <span className="text-blue-600">
-                            {sortOrder === "asc" ? "↑" : "↓"}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Specialties
-                    </th>
-                    <th
-                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort("yearsOfExperience")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Experience
-                        {sortBy === "yearsOfExperience" && (
-                          <span className="text-blue-600">
-                            {sortOrder === "asc" ? "↑" : "↓"}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Phone
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {tableRows}
-              </tbody>
-            </table>
-            </div>
-          </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={Math.ceil(totalCount / 10)}
-            totalItems={totalCount}
-            itemsPerPage={10}
-            onPageChange={handlePageChange}
-          />
-        </div>
+        <AdvocatesTable
+          data={advocates}
+          isLoading={isSearching}
+          onSortChange={handleTableSortChange}
+          onPageChange={handleTablePageChange}
+          currentSorting={currentSorting}
+          currentPage={currentPage - 1} // Convert to 0-based for TanStack
+          pageSize={10}
+          totalCount={totalCount}
+        />
       </div>
     </main>
   );
