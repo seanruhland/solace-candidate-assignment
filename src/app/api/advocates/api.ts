@@ -19,6 +19,7 @@ export interface PaginationResponse {
   limit: number;
   total: number;
   totalPages: number;
+  totalInDatabase: number; // Add total count in database
 }
 
 export interface AdvocatesResponse {
@@ -46,6 +47,11 @@ export async function getAdvocates({ searchTerm, pagination }: SearchParams): Pr
   try {
     let data: any[] = [];
     let total = 0;
+    let totalInDatabase = 0;
+
+    // Get total count in database (always needed)
+    const totalInDbResult = await db.select({ count: count() }).from(advocates);
+    totalInDatabase = totalInDbResult[0]?.count || 0;
 
     if (searchTerm?.trim()) {
       // Build search condition
@@ -100,7 +106,8 @@ export async function getAdvocates({ searchTerm, pagination }: SearchParams): Pr
         page: validPage,
         limit: validLimit,
         total,
-        totalPages: Math.ceil(total / validLimit)
+        totalPages: Math.ceil(total / validLimit),
+        totalInDatabase
       }
     };
   } catch (error) {

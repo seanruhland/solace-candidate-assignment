@@ -22,6 +22,7 @@ interface Advocate {
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalInDatabase, setTotalInDatabase] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +71,7 @@ export default function Home() {
       const jsonResponse = await response.json();
       setAdvocates(jsonResponse.data);
       setTotalCount(jsonResponse.pagination.total);
+      setTotalInDatabase(jsonResponse.pagination.totalInDatabase);
     } catch (err) {
       console.error("Error fetching advocates:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch advocates");
@@ -144,10 +146,10 @@ export default function Home() {
     searchTerm,
     onSearchChange: handleSearchChange,
     onResetSearch: handleResetSearch,
-    filteredCount: advocates.length,
-    totalCount,
+    filteredCount: advocates.length, // Current page results count
+    totalCount: totalInDatabase, // Total count in database
     isSearching,
-  }), [searchTerm, handleSearchChange, handleResetSearch, advocates.length, totalCount, isSearching]);
+  }), [searchTerm, handleSearchChange, handleResetSearch, advocates.length, totalInDatabase, isSearching]);
 
   // Loading state
   if (isLoading) {
@@ -160,12 +162,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto h-screen flex flex-col">
+    <main className="h-screen bg-gray-50 p-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col">
         {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">Solace Advocates</h1>
-          <p className="text-gray-600 text-sm">Find and search through our network of legal advocates</p>
+        <div className="mb-3 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Solace Advocates</h1>
+          <p className="text-gray-600 text-xs">Find and search through our network of legal advocates</p>
         </div>
 
         <SearchSection {...searchSectionProps} />

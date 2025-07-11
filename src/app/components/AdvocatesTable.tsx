@@ -100,7 +100,7 @@ export default function AdvocatesTable({
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
+            className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
           >
             Name
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -112,13 +112,14 @@ export default function AdvocatesTable({
             {row.original.firstName} {row.original.lastName}
           </div>
         ),
+        size: 150, // Fixed width for name column
       },
       {
         accessorKey: "city",
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
+            className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
           >
             City
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -128,13 +129,14 @@ export default function AdvocatesTable({
         cell: ({ row }) => (
           <div className="text-sm text-gray-900">{row.original.city}</div>
         ),
+        size: 120, // Fixed width for city column
       },
       {
         accessorKey: "degree",
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
+            className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
           >
             Degree
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -144,6 +146,7 @@ export default function AdvocatesTable({
         cell: ({ row }) => (
           <div className="text-sm text-gray-900">{row.original.degree}</div>
         ),
+        size: 120, // Fixed width for degree column
       },
       {
         accessorKey: "specialties",
@@ -151,13 +154,14 @@ export default function AdvocatesTable({
         cell: ({ row }) => (
           <ExpandableSpecialties specialties={row.original.specialties} advocateId={row.original.id} />
         ),
+        size: 200, // Fixed width for specialties column
       },
       {
         accessorKey: "yearsOfExperience",
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
+            className="flex items-center gap-1 hover:bg-gray-100 rounded text-xs w-full text-left"
           >
             Experience
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -169,15 +173,24 @@ export default function AdvocatesTable({
             {row.original.yearsOfExperience} {row.original.yearsOfExperience === 1 ? 'year' : 'years'}
           </div>
         ),
+        size: 100, // Fixed width for experience column
       },
       {
         accessorKey: "phoneNumber",
         header: "Phone",
-        cell: ({ row }) => (
-          <div className="text-sm text-gray-900">
-            {row.original.phoneNumber.toString().replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const phoneNumber = row.original.phoneNumber.toString().replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+          return (
+            <a
+              href={`tel:${row.original.phoneNumber}`}
+              className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer whitespace-nowrap"
+              title="Click to call"
+            >
+              {phoneNumber}
+            </a>
+          );
+        },
+        size: 160, // Increased width further for phone column
       },
     ],
     []
@@ -226,7 +239,7 @@ export default function AdvocatesTable({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[calc(100vh-280px)]">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
       <div className="overflow-x-auto flex-1">
         <div className="h-full overflow-y-auto">
           <table className="w-full">
@@ -237,6 +250,7 @@ export default function AdvocatesTable({
                     <th
                       key={header.id}
                       className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200"
+                      style={{ width: header.getSize() }}
                     >
                       {header.isPlaceholder
                         ? null
@@ -276,7 +290,7 @@ export default function AdvocatesTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-t border-gray-200">
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-t border-gray-200 flex-shrink-0">
         <div className="text-sm text-gray-700">
           Showing <span className="font-medium">{currentPage * pageSize + 1}</span> to{' '}
           <span className="font-medium">{Math.min((currentPage + 1) * pageSize, totalCount)}</span> of{' '}
