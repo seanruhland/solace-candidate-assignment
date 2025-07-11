@@ -16,7 +16,7 @@ export default function SearchSection({
   isSearching = false,
 }: SearchSectionProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex-1">
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
@@ -42,22 +42,22 @@ export default function SearchSection({
               </button>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            {isSearching ? (
-              <span className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                Searching...
-              </span>
-            ) : (
-              <>
-                Showing <span className="font-semibold text-gray-900">{filteredCount}</span> of{" "}
-                <span className="font-semibold text-gray-900">{totalCount}</span> advocates
-              </>
-            )}
+          {/* Results count below input */}
+          <div className="mt-2">
+            <p className="text-xs text-gray-500">
+              {isSearching ? (
+                <span className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  Searching...
+                </span>
+              ) : (
+                <>
+                  Showing <span className="font-medium text-gray-700">{filteredCount}</span> of{" "}
+                  <span className="font-medium text-gray-700">{totalCount}</span> advocates
+                </>
+              )}
+            </p>
           </div>
-
         </div>
       </div>
     </div>

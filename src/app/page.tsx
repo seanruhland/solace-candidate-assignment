@@ -79,61 +79,75 @@ export default function Home() {
     }
   }, []);
 
+  // Memoize the initial load check to prevent unnecessary re-renders
+  const isInitialLoad = useMemo(() => {
+    return !debouncedSearchTerm && currentPage === 1 && sortBy === "firstName" && sortOrder === "asc";
+  }, [debouncedSearchTerm, currentPage, sortBy, sortOrder]);
+
   // Single effect to handle all data fetching
   useEffect(() => {
-    const isInitialLoad = !debouncedSearchTerm && currentPage === 1 && sortBy === "firstName" && sortOrder === "asc";
-
     if (isInitialLoad) {
       fetchAdvocates();
     } else {
       fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
     }
-  }, [debouncedSearchTerm, currentPage, sortBy, sortOrder, fetchAdvocates]);
+  }, [debouncedSearchTerm, currentPage, sortBy, sortOrder, fetchAdvocates, isInitialLoad]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-  };
+  }, []);
 
-  const handleResetSearch = () => {
+  const handleResetSearch = useCallback(() => {
     setSearchTerm("");
     setDebouncedSearchTerm("");
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleSort = (field: string) => {
-    const newOrder = sortBy === field && sortOrder === "asc" ? "desc" : "asc";
-    setSortBy(field);
-    setSortOrder(newOrder);
-    setCurrentPage(1); // Reset to first page when sorting
-  };
+  }, [fetchAdvocates, debouncedSearchTerm, currentPage, sortBy, sortOrder]);
 
   // Convert TanStack sorting state to our format
-  const handleTableSortChange = (sorting: SortingState) => {
+  const handleTableSortChange = useCallback((sorting: SortingState) => {
     if (sorting.length > 0) {
       const { id, desc } = sorting[0];
       setSortBy(id);
       setSortOrder(desc ? "desc" : "asc");
       setCurrentPage(1);
     }
-  };
+  }, []);
 
   // Convert TanStack pagination to our format
-  const handleTablePageChange = (pageIndex: number, pageSize: number) => {
+  const handleTablePageChange = useCallback((pageIndex: number, pageSize: number) => {
     setCurrentPage(pageIndex + 1); // TanStack uses 0-based indexing
-  };
+  }, []);
 
   // Convert our sorting state to TanStack format
   const currentSorting: SortingState = useMemo(() => {
     return sortBy ? [{ id: sortBy, desc: sortOrder === "desc" }] : [];
   }, [sortBy, sortOrder]);
+
+  // Memoize the table props to prevent unnecessary re-renders
+  const tableProps = useMemo(() => ({
+    data: advocates,
+    isLoading: isSearching,
+    onSortChange: handleTableSortChange,
+    onPageChange: handleTablePageChange,
+    currentSorting,
+    currentPage: currentPage - 1, // Convert to 0-based for TanStack
+    pageSize: 10,
+    totalCount,
+  }), [advocates, isSearching, handleTableSortChange, handleTablePageChange, currentSorting, currentPage, totalCount]);
+
+  // Memoize the search section props
+  const searchSectionProps = useMemo(() => ({
+    searchTerm,
+    onSearchChange: handleSearchChange,
+    onResetSearch: handleResetSearch,
+    filteredCount: advocates.length,
+    totalCount,
+    isSearching,
+  }), [searchTerm, handleSearchChange, handleResetSearch, advocates.length, totalCount, isSearching]);
 
   // Loading state
   if (isLoading) {
@@ -146,33 +160,19 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <main className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto h-screen flex flex-col">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Solace Advocates</h1>
-          <p className="text-gray-600">Find and search through our network of legal advocates</p>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">Solace Advocates</h1>
+          <p className="text-gray-600 text-sm">Find and search through our network of legal advocates</p>
         </div>
 
-        <SearchSection
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          onResetSearch={handleResetSearch}
-          filteredCount={advocates.length}
-          totalCount={totalCount}
-          isSearching={isSearching}
-        />
+        <SearchSection {...searchSectionProps} />
 
-        <AdvocatesTable
-          data={advocates}
-          isLoading={isSearching}
-          onSortChange={handleTableSortChange}
-          onPageChange={handleTablePageChange}
-          currentSorting={currentSorting}
-          currentPage={currentPage - 1} // Convert to 0-based for TanStack
-          pageSize={10}
-          totalCount={totalCount}
-        />
+        <div className="flex-1 min-h-0">
+          <AdvocatesTable {...tableProps} />
+        </div>
       </div>
     </main>
   );

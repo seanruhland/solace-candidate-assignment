@@ -1,6 +1,6 @@
 import db from "../../../db";
 import { advocates } from "../../../db/schema";
-import { ilike, or, sql } from "drizzle-orm";
+import { ilike, or, sql, count } from "drizzle-orm";
 
 export interface PaginationParams {
   page: number;
@@ -43,16 +43,13 @@ export async function getAdvocates({ searchTerm, pagination }: SearchParams): Pr
   const sortField = advocates[validSortBy as keyof typeof advocates];
   const orderBy = validSortOrder === 'desc' ? sql`${sortField} DESC` : sql`${sortField} ASC`;
 
-  // Get total count for pagination
-  const totalCount = await db.select({ count: sql<number>`count(*)` }).from(advocates);
-  const total = totalCount[0]?.count || 0;
+  try {
+    let data: any[] = [];
+    let total = 0;
 
-  // Build and execute query with search, sorting, and pagination
-  let data;
-  if (searchTerm?.trim()) {
-    // Search across multiple fields using ILIKE for case-insensitive search
-    data = await db.select().from(advocates).where(
-      or(
+    if (searchTerm?.trim()) {
+      // Build search condition
+      const searchCondition = or(
         ilike(advocates.firstName, `%${searchTerm.trim()}%`),
         ilike(advocates.lastName, `%${searchTerm.trim()}%`),
         ilike(advocates.city, `%${searchTerm.trim()}%`),
@@ -61,19 +58,53 @@ export async function getAdvocates({ searchTerm, pagination }: SearchParams): Pr
         sql`${advocates.specialties}::text ILIKE ${`%${searchTerm.trim()}%`}`,
         // Search in years of experience (convert to string for partial matching)
         sql`CAST(${advocates.yearsOfExperience} AS TEXT) ILIKE ${`%${searchTerm.trim()}%`}`
-      )
-    ).orderBy(orderBy).limit(validLimit).offset(offset);
-  } else {
-    data = await db.select().from(advocates).orderBy(orderBy).limit(validLimit).offset(offset);
-  }
+      );
 
-  return {
-    data,
-    pagination: {
-      page: validPage,
-      limit: validLimit,
-      total,
-      totalPages: Math.ceil(total / validLimit)
+      // Execute both count and data queries in parallel for better performance
+      const [countResult, dataResult] = await Promise.all([
+        db.select({ count: count() }).from(advocates).where(searchCondition),
+        db.select().from(advocates).where(searchCondition).orderBy(orderBy).limit(validLimit).offset(offset)
+      ]);
+
+      total = countResult[0]?.count || 0;
+      data = dataResult;
+    } else {
+      // For non-search queries, we can optimize by using a single query with window function
+      // This avoids the separate count query for better performance
+      const result = await db.select({
+        id: advocates.id,
+        firstName: advocates.firstName,
+        lastName: advocates.lastName,
+        city: advocates.city,
+        degree: advocates.degree,
+        specialties: advocates.specialties,
+        yearsOfExperience: advocates.yearsOfExperience,
+        phoneNumber: advocates.phoneNumber,
+        createdAt: advocates.createdAt,
+        total: sql<number>`count(*) over()`
+      }).from(advocates).orderBy(orderBy).limit(validLimit).offset(offset);
+
+      if (result.length > 0) {
+        total = result[0].total || 0;
+        // Remove the total field from the data
+        data = result.map(({ total, ...rest }) => rest);
+      } else {
+        data = [];
+        total = 0;
+      }
     }
-  };
+
+    return {
+      data,
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages: Math.ceil(total / validLimit)
+      }
+    };
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw new Error('Failed to fetch advocates from database');
+  }
 }

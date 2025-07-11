@@ -5,11 +5,9 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
-  getFilteredRowModel,
   flexRender,
   type ColumnDef,
   type SortingState,
-  type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { useState, useMemo } from "react";
 
@@ -36,6 +34,53 @@ interface AdvocatesTableProps {
   totalCount?: number;
 }
 
+// Expandable Specialties Component
+function ExpandableSpecialties({ specialties, advocateId }: { specialties: string[]; advocateId: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const maxVisible = 5;
+  const hasMore = specialties.length > maxVisible;
+
+  if (!hasMore) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {specialties.map((specialty: string, index: number) => (
+          <span
+            key={`${advocateId}-${index}`}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-blue-600 text-blue-700"
+          >
+            {specialty}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const visibleSpecialties = isExpanded ? specialties : specialties.slice(0, maxVisible);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {visibleSpecialties.map((specialty: string, index: number) => (
+          <span
+            key={`${advocateId}-${index}`}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-blue-600 text-blue-700"
+          >
+            {specialty}
+          </span>
+        ))}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+        >
+          {isExpanded ? `Show less` : `Show ${specialties.length - maxVisible} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AdvocatesTable({
   data,
   isLoading = false,
@@ -47,7 +92,6 @@ export default function AdvocatesTable({
   totalCount = 0,
 }: AdvocatesTableProps) {
   const [sorting, setSorting] = useState<SortingState>(currentSorting);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const columns = useMemo<ColumnDef<Advocate>[]>(
     () => [
@@ -56,7 +100,7 @@ export default function AdvocatesTable({
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded"
+            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
           >
             Name
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -74,7 +118,7 @@ export default function AdvocatesTable({
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded"
+            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
           >
             City
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -90,7 +134,7 @@ export default function AdvocatesTable({
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded"
+            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
           >
             Degree
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -105,16 +149,7 @@ export default function AdvocatesTable({
         accessorKey: "specialties",
         header: "Specialties",
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1">
-            {row.original.specialties.map((specialty: string, index: number) => (
-              <span
-                key={`${row.original.id}-${index}`}
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-              >
-                {specialty}
-              </span>
-            ))}
-          </div>
+          <ExpandableSpecialties specialties={row.original.specialties} advocateId={row.original.id} />
         ),
       },
       {
@@ -122,7 +157,7 @@ export default function AdvocatesTable({
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded"
+            className="flex items-center gap-1 hover:bg-gray-100 px-2 py-1 rounded text-xs"
           >
             Experience
             {column.getIsSorted() === "asc" && <span className="text-blue-600">↑</span>}
@@ -154,16 +189,13 @@ export default function AdvocatesTable({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: (updater) => {
       const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
       setSorting(newSorting);
       onSortChange?.(newSorting);
     },
-    onColumnFiltersChange: setColumnFilters,
     state: {
       sorting,
-      columnFilters,
     },
     manualSorting: true,
     manualPagination: true,
@@ -194,9 +226,9 @@ export default function AdvocatesTable({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
-        <div className="max-h-[500px] overflow-y-auto">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[calc(100vh-280px)]">
+      <div className="overflow-x-auto flex-1">
+        <div className="h-full overflow-y-auto">
           <table className="w-full">
             <thead className="bg-gray-50 sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -204,7 +236,7 @@ export default function AdvocatesTable({
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200"
+                      className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200"
                     >
                       {header.isPlaceholder
                         ? null
@@ -231,7 +263,7 @@ export default function AdvocatesTable({
                 table.getRowModel().rows.map((row) => (
                   <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                      <td key={cell.id} className="px-4 py-3">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -244,7 +276,7 @@ export default function AdvocatesTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-200">
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-t border-gray-200">
         <div className="text-sm text-gray-700">
           Showing <span className="font-medium">{currentPage * pageSize + 1}</span> to{' '}
           <span className="font-medium">{Math.min((currentPage + 1) * pageSize, totalCount)}</span> of{' '}
