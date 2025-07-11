@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import LoadingState from "./components/LoadingState";
 import ErrorState from "./components/ErrorState";
 import SearchSection from "./components/SearchSection";
+import AdvocatesTable from "./components/AdvocatesTable";
+import { type SortingState } from "@tanstack/react-table";
 
 interface Advocate {
   id: number;
@@ -19,59 +21,140 @@ interface Advocate {
 
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalInDatabase, setTotalInDatabase] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState("firstName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSorting, setIsSorting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchAdvocates = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const response = await fetch("/api/advocates");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const jsonResponse = await response.json();
-        setAdvocates(jsonResponse.data);
-      } catch (err) {
-        console.error("Error fetching advocates:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch advocates");
-      } finally {
-        setIsLoading(false);
-      }
-  };
-
+  // Debounce searchTerm into debouncedSearchTerm
   useEffect(() => {
-    fetchAdvocates();
-  }, []);
-  //TODO: Move this search to the server side
-  const filteredAdvocates = useMemo(() => {
-    if (!searchTerm.trim()) return advocates;
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    debounceTimeout.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 300);
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    };
+  }, [searchTerm]);
 
-    const searchLower = searchTerm.toLowerCase();
-    return advocates.filter((advocate) => {
-      return (
-        advocate.firstName.toLowerCase().includes(searchLower) ||
-        advocate.lastName.toLowerCase().includes(searchLower) ||
-        advocate.city.toLowerCase().includes(searchLower) ||
-        advocate.degree.toLowerCase().includes(searchLower) ||
-        advocate.specialties.some(specialty =>
-          specialty.toLowerCase().includes(searchLower)
-        ) ||
-        advocate.yearsOfExperience.toString().includes(searchTerm)
-      );
-    });
-  }, [advocates, searchTerm]);
+  // Fetch advocates with search, pagination, and sorting
+  const fetchAdvocates = useCallback(async (search?: string, page?: number, sort?: string, order?: "asc" | "desc") => {
+    try {
+      // Show loading state for any operation that's not the initial load
+      const isInitialLoad = !search && page === 1 && sort === "firstName" && order === "asc";
+      const isSortingOperation = !search && page === currentPage && sort !== sortBy;
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isInitialLoad) {
+        setIsLoading(true);
+      } else if (isSortingOperation) {
+        setIsSorting(true);
+      } else {
+        setIsSearching(true);
+      }
+      setError(null);
+
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (page) params.append('page', page.toString());
+      if (sort) params.append('sortBy', sort);
+      if (order) params.append('sortOrder', order);
+
+      const url = `/api/advocates?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const jsonResponse = await response.json();
+      setAdvocates(jsonResponse.data);
+      setTotalCount(jsonResponse.pagination.total);
+      setTotalInDatabase(jsonResponse.pagination.totalInDatabase);
+    } catch (err) {
+      console.error("Error fetching advocates:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch advocates");
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+      setIsSorting(false);
+    }
+  }, [currentPage, sortBy]);
+
+  // Memoize the initial load check to prevent unnecessary re-renders
+  const isInitialLoad = useMemo(() => {
+    return !debouncedSearchTerm && currentPage === 1 && sortBy === "firstName" && sortOrder === "asc";
+  }, [debouncedSearchTerm, currentPage, sortBy, sortOrder]);
+
+  // Single effect to handle all data fetching
+  useEffect(() => {
+    if (isInitialLoad) {
+      fetchAdvocates();
+    } else {
+      fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
+    }
+  }, [debouncedSearchTerm, currentPage, sortBy, sortOrder, fetchAdvocates, isInitialLoad]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-  };
+  }, []);
 
-  const handleResetSearch = () => {
+  const handleResetSearch = useCallback(() => {
     setSearchTerm("");
-  };
+    setDebouncedSearchTerm("");
+    setCurrentPage(1);
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    fetchAdvocates(debouncedSearchTerm, currentPage, sortBy, sortOrder);
+  }, [fetchAdvocates, debouncedSearchTerm, currentPage, sortBy, sortOrder]);
+
+  // Convert TanStack sorting state to our format
+  const handleTableSortChange = useCallback((sorting: SortingState) => {
+    if (sorting.length > 0) {
+      const { id, desc } = sorting[0];
+      setSortBy(id);
+      setSortOrder(desc ? "desc" : "asc");
+      setCurrentPage(1);
+    }
+  }, []);
+
+  // Convert TanStack pagination to our format
+  const handleTablePageChange = useCallback((pageIndex: number, pageSize: number) => {
+    setCurrentPage(pageIndex + 1); // TanStack uses 0-based indexing
+  }, []);
+
+  // Convert our sorting state to TanStack format
+  const currentSorting: SortingState = useMemo(() => {
+    return sortBy ? [{ id: sortBy, desc: sortOrder === "desc" }] : [];
+  }, [sortBy, sortOrder]);
+
+  // Memoize the table props to prevent unnecessary re-renders
+  const tableProps = useMemo(() => ({
+    data: advocates,
+    isLoading: isSearching,
+    onSortChange: handleTableSortChange,
+    onPageChange: handleTablePageChange,
+    currentSorting,
+    currentPage: currentPage - 1, // Convert to 0-based for TanStack
+    pageSize: 10,
+    totalCount,
+  }), [advocates, isSearching, handleTableSortChange, handleTablePageChange, currentSorting, currentPage, totalCount]);
+
+  // Memoize the search section props
+  const searchSectionProps = useMemo(() => ({
+    searchTerm,
+    onSearchChange: handleSearchChange,
+    onResetSearch: handleResetSearch,
+    filteredCount: advocates.length, // Current page results count
+    totalCount: totalInDatabase, // Total count in database
+    isSearching,
+  }), [searchTerm, handleSearchChange, handleResetSearch, advocates.length, totalInDatabase, isSearching]);
 
   // Loading state
   if (isLoading) {
@@ -80,111 +163,22 @@ export default function Home() {
 
   // Error state
   if (error) {
-    return <ErrorState error={error} onRetry={fetchAdvocates} />;
+    return <ErrorState error={error} onRetry={handleRetry} />;
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <main className="h-screen bg-gray-50 p-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Solace Advocates</h1>
-          <p className="text-gray-600">Find and search through our network of legal advocates</p>
+        <div className="mb-3 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Solace Advocates</h1>
+          <p className="text-gray-600 text-xs">Find and search through our network of legal advocates</p>
         </div>
 
-        <SearchSection
-          searchTerm={searchTerm}
-          onSearchChange={handleSearchChange}
-          onResetSearch={handleResetSearch}
-          filteredCount={filteredAdvocates.length}
-          totalCount={advocates.length}
-        />
+        <SearchSection {...searchSectionProps} />
 
-        {/* Table Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="max-h-[500px] overflow-y-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Name
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      City
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Degree
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Specialties
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Experience
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      Phone
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAdvocates.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      <div className="flex flex-col items-center">
-                        <svg className="w-12 h-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <p className="text-lg font-medium">No advocates found</p>
-                        <p className="text-sm">Try adjusting your search criteria</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredAdvocates.map((advocate) => (
-                    <tr key={advocate.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {advocate.firstName} {advocate.lastName}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{advocate.city}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{advocate.degree}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {advocate.specialties.map((specialty, index) => (
-                            <span
-                              key={`${advocate.id}-${index}`}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {specialty}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {advocate.yearsOfExperience} {advocate.yearsOfExperience === 1 ? 'year' : 'years'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {advocate.phoneNumber.toString().replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            </div>
-          </div>
+        <div className="flex-1 min-h-0">
+          <AdvocatesTable {...tableProps} />
         </div>
       </div>
     </main>
